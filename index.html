@@ -57,10 +57,9 @@
     let allValidData = [];
     let currentPage = 0;
     const chartsPerPage = 6;
-    const scriptID = "OdcwWfHJ"; // Il tuo ID Script privato
+    const layoutID = "zJW3TN4f"; // Il tuo ID del Layout Condiviso
     let viewTF = localStorage.getItem('viagra-view-tf') || '30';
     document.getElementById('tf-select').value = viewTF;
-
     function toggleAppFullScreen() {
         const app = document.documentElement;
         if (!document.fullscreenElement && !document.webkitFullscreenElement) {
@@ -104,7 +103,8 @@
 
     // Funzione helper per generare l'URL con lo Script ID
     function getTvUrl(symbol, tf) {
-        return `https://s.tradingview.com/widgetembed/?symbol=BYBIT:${symbol}.P&interval=${tf}&theme=dark&style=1&layout=Default&studies=${scriptID}`;
+        // Rimosso "studies=" e "layout=Default", inserito "chart=" con l'ID
+        return `https://s.tradingview.com/widgetembed/?symbol=BYBIT:${symbol}.P&interval=${tf}&theme=dark&style=1&chart=${layoutID}`;
     }
 
     function renderPage() {
