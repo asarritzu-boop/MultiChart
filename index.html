@@ -57,6 +57,7 @@
     let allValidData = [];
     let currentPage = 0;
     const chartsPerPage = 6;
+    const scriptID = "OdcwWfHJ"; // Il tuo ID Script privato
     let viewTF = localStorage.getItem('viagra-view-tf') || '30';
     document.getElementById('tf-select').value = viewTF;
 
@@ -101,6 +102,11 @@
         } catch (e) { return 0; }
     }
 
+    // Funzione helper per generare l'URL con lo Script ID
+    function getTvUrl(symbol, tf) {
+        return `https://s.tradingview.com/widgetembed/?symbol=BYBIT:${symbol}.P&interval=${tf}&theme=dark&style=1&layout=Default&studies=${scriptID}`;
+    }
+
     function renderPage() {
         const grid = document.getElementById('chartGrid');
         grid.innerHTML = "";
@@ -122,7 +128,7 @@
                     <span class="range-badge">1m: ${item.range.toFixed(2)}%</span>
                 </div>
                 <div class="frames-container single-view" id="container-${item.symbol}">
-                    <iframe src="https://s.tradingview.com/widgetembed/?symbol=BYBIT:${item.symbol}.P&interval=${viewTF}&theme=dark&style=1&layout=Default" allowfullscreen></iframe>
+                    <iframe src="${getTvUrl(item.symbol, viewTF)}" allowfullscreen></iframe>
                 </div>
             `;
             grid.appendChild(card);
@@ -139,14 +145,14 @@
         if (isMulti) {
             container.classList.replace('single-view', 'multi-view');
             container.innerHTML = `
-                <iframe src="https://s.tradingview.com/widgetembed/?symbol=BYBIT:${symbol}.P&interval=1&theme=dark&style=1&layout=Default"></iframe>
-                <iframe src="https://s.tradingview.com/widgetembed/?symbol=BYBIT:${symbol}.P&interval=5&theme=dark&style=1&layout=Default"></iframe>
-                <iframe src="https://s.tradingview.com/widgetembed/?symbol=BYBIT:${symbol}.P&interval=30&theme=dark&style=1&layout=Default"></iframe>
-                <iframe src="https://s.tradingview.com/widgetembed/?symbol=BYBIT:${symbol}.P&interval=D&theme=dark&style=1&layout=Default"></iframe>
+                <iframe src="${getTvUrl(symbol, '1')}"></iframe>
+                <iframe src="${getTvUrl(symbol, '5')}"></iframe>
+                <iframe src="${getTvUrl(symbol, '30')}"></iframe>
+                <iframe src="${getTvUrl(symbol, 'D')}"></iframe>
             `;
         } else {
             container.classList.replace('multi-view', 'single-view');
-            container.innerHTML = `<iframe src="https://s.tradingview.com/widgetembed/?symbol=BYBIT:${symbol}.P&interval=${viewTF}&theme=dark&style=1&layout=Default"></iframe>`;
+            container.innerHTML = `<iframe src="${getTvUrl(symbol, viewTF)}"></iframe>`;
         }
     }
 
