@@ -665,7 +665,7 @@ function sendToScanner(symbol) {
                 <div class="stat-badge range-badge"><span style="font-size:0.5em; display:block">RANGE 1M</span>${sig.range.toFixed(2)}%</div>
             </div>
 
-            ${sig.isViagra ? `<div class="viagra-alert">⚡ VIAGRA DOMINANCE (${viagraDominanceDetectionLimit})</div>` : ''}
+            ${sig.isViagra ? `<div class="viagra-alert">⚡ DOMINANCE (${viagraDominanceDetectionLimit})</div>` : ''}
             ${sig.isScollato ? `<div class="gap-alert">⚠️ SCOLLATO (ATTENDI)</div>` : ''}
 
             <table class="tf-table">
