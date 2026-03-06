@@ -73,6 +73,18 @@
 
         
         .loader { text-align: center; padding: 40px; grid-column: 1 / -1; font-size: 18px; color: var(--accent); }
+    /* Aggiungi questo nel blocco <style> */
+@media (orientation: landscape) {
+    #app-container, #multi-container {
+        height: 100vw; /* Inverte le proporzioni se necessario */
+        height: -webkit-fill-available;
+    }
+    #chartGrid {
+        grid-template-columns: repeat(3, 1fr); /* Tre colonne se largo */
+    }
+}
+        
+    
     </style>
 </head>
 <body>
