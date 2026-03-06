@@ -3,7 +3,7 @@
   "short_name": "BybitScanner",
   "description": "Scanner professionale Real-Time per Bybit con Daily Dynamic Range",
   "start_url": "index.html",
-  "display": "standalone",
+  "display": "minimal-ui",
   "background_color": "#0c0d10",
   "theme_color": "#0c0d10",
   "orientation": "any",
