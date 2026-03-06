@@ -3,31 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bybit Scanner - Viagra Pro</title>
+    <title>Bybit Scanner - Daily Range</title>
+    
+    <meta name="theme-color" content="#0c0d10">
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" href="icona-192.png">
+    <link rel="apple-touch-icon" href="icona-192.png">
+
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://asarritzu-boop.github.io/MultiChart/">
+    <meta property="og:title" content="Bybit Scanner - Daily Range">
+    <meta property="og:description" content="Scanner professionale Real-Time per Bybit con Daily Dynamic Range e Multiframe.">
+    <meta property="og:image" content="https://asarritzu-boop.github.io/MultiChart/icona-512.png">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+
+    <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
     <style>
         :root { --bg: #0c0d10; --panel: #1e222d; --accent: #2962ff; --text: #d1d4dc; --success: #00ff88; }
-        html, body { background: var(--bg); color: var(--text); margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Trebuchet MS', sans-serif; touch-action: manipulation; }
-        #app-container { width: 100%; height: 100%; display: flex; flex-direction: column; background: var(--bg); }
+        html, body { background: var(--bg); color: var(--text); margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Trebuchet MS', sans-serif; overflow: hidden; }
+        #app-container { width: 100%; height: 100vh; display: flex; flex-direction: column; }
         #toolbar { padding: 10px 15px; display: flex; align-items: center; justify-content: space-between; background: var(--panel); border-bottom: 1px solid #363a45; flex-shrink: 0; }
         .controls-left { display: flex; gap: 8px; align-items: center; }
         .pagination { display: flex; gap: 12px; align-items: center; background: #2a2e39; padding: 5px 12px; border-radius: 20px; }
-        select, button { background: #2a2e39; color: white; border: 1px solid #434651; padding: 8px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; }
+        select, button { background: #2a2e39; color: white; border: 1px solid #434651; padding: 8px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; transition: 0.2s; }
+        button:active { transform: scale(0.95); }
         .btn-fs { background: var(--accent); border: none; }
+        .btn-share { background: #363a45; border: 1px solid #434651; color: #fff; }
         .nav-btn { font-size: 18px; background: none; border: none; color: var(--accent); padding: 0 5px; }
-        .nav-btn:disabled { color: #5d606b; }
         #chartGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 10px; flex-grow: 1; overflow-y: auto; }
         @media (max-width: 1024px) { #chartGrid { grid-template-columns: repeat(2, 1fr); } }
         @media (max-width: 768px) { #chartGrid { grid-template-columns: 1fr; } }
-        .chart-card { background: var(--panel); border-radius: 8px; overflow: hidden; min-height: 450px; border: 1px solid #363a45; display: flex; flex-direction: column; transition: all 0.3s ease; }
+        .chart-card { background: var(--panel); border-radius: 8px; overflow: hidden; height: 450px; border: 1px solid #363a45; display: flex; flex-direction: column; }
         .chart-card.is-multiframe { grid-column: 1 / -1; height: 800px; }
         .chart-header { padding: 8px 12px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; background: #2a2e39; }
         .chart-header a { color: var(--success); text-decoration: none; font-weight: bold; font-size: 14px; }
         .btn-multi { background: #363a45; font-size: 10px; padding: 4px 8px; border: 1px solid #434651; border-radius: 3px; }
-        .btn-multi.active { background: var(--accent); }
-        .frames-container { flex-grow: 1; display: grid; width: 100%; height: 100%; }
+        .frames-container { flex-grow: 1; display: grid; width: 100%; height: 100%; position: relative; }
         .single-view { grid-template-columns: 1fr; grid-template-rows: 1fr; }
         .multi-view { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
-        iframe { width: 100%; height: 100%; border: none; }
+        .chart-item { width: 100%; height: 100%; }
         .loader { text-align: center; padding: 40px; grid-column: 1 / -1; }
     </style>
 </head>
@@ -36,17 +51,17 @@
     <div id="toolbar">
         <div class="controls-left">
             <button class="btn-fs" onclick="toggleAppFullScreen()">⛶ App</button>
+            <button class="btn-share" onclick="shareApp()">📤</button>
             <select id="tf-select" onchange="syncChartsTimeframe(this.value)">
-                <option value="1">1m</option><option value="5">5m</option>
-                <option value="15">15m</option><option value="30" selected>30m</option>
-                <option value="60">1h</option><option value="240">4h</option><option value="D">1D</option>
+                <option value="1">1m</option><option value="5">5m</option><option value="15">15m</option>
+                <option value="30" selected>30m</option><option value="60">1h</option><option value="240">4h</option><option value="D">1D</option>
             </select>
             <button onclick="startScanner()">🚀 Scan & Sort</button>
         </div>
         <div class="pagination">
-            <button class="nav-btn" id="prevPage" onclick="prevPage()">◀</button>
-            <span id="pageInfo" style="font-size: 12px;">- / -</span>
-            <button class="nav-btn" id="nextPage" onclick="nextPage()">▶</button>
+            <button class="nav-btn" onclick="prevPage()">◀</button>
+            <span id="pageInfo">- / -</span>
+            <button class="nav-btn" onclick="nextPage()">▶</button>
         </div>
         <div id="status" style="font-size: 10px; color: #848e9c;">Pronto</div>
     </div>
@@ -54,38 +69,50 @@
 </div>
 
 <script>
+    // Registrazione Service Worker per PWA
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').catch(err => console.log("SW non registrato", err));
+    }
+
     let allValidData = [];
     let currentPage = 0;
     const chartsPerPage = 6;
-    const bullScriptID = "BWlC3Zv7";
     let viewTF = localStorage.getItem('viagra-view-tf') || '30';
-    document.getElementById('tf-select').value = viewTF;
+    let activeWebSockets = [];
+
     function toggleAppFullScreen() {
-        const app = document.documentElement;
-        if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-            if (app.requestFullscreen) app.requestFullscreen();
-            else if (app.webkitRequestFullscreen) app.webkitRequestFullscreen();
-        } else {
-            if (document.exitFullscreen) document.exitFullscreen();
-            else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
-        }
+        if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+        else document.exitFullscreen();
     }
 
+    async function shareApp() {
+        const shareData = {
+            title: 'Bybit Scanner',
+            text: 'Guarda questo Scanner Real-Time per Bybit!',
+            url: window.location.href
+        };
+        try {
+            if (navigator.share) await navigator.share(shareData);
+            else alert("Copia questo link: " + window.location.href);
+        } catch (err) { console.log(err); }
+    }
+
+    // --- LOGICA SCANNER & CHART (Semplificata per brevità, usa la stessa dell'ultimo messaggio) ---
     async function startScanner() {
+        closeAllWebSockets();
         const grid = document.getElementById('chartGrid');
-        grid.innerHTML = '<div class="loader">Analisi 1m in corso...</div>';
+        grid.innerHTML = '<div class="loader">Analisi coppie...</div>';
         try {
             const resp = await fetch('https://api.bybit.com/v5/market/tickers?category=linear');
             const data = await resp.json();
             const pairs = data.result.list.filter(i => i.symbol.endsWith('USDT'));
             allValidData = [];
             const promises = pairs.map(async (p) => {
-                const rangeVal = await getRange1m(p.symbol);
-                if (rangeVal >= 0.5) allValidData.push({ symbol: p.symbol, range: rangeVal });
+                const range = await getRange1m(p.symbol);
+                if (range >= 0.5) allValidData.push({ symbol: p.symbol, range: range });
             });
             await Promise.all(promises);
             allValidData.sort((a, b) => b.range - a.range);
-            currentPage = 0;
             renderPage();
         } catch (e) { grid.innerHTML = '<div class="loader">Errore API.</div>'; }
     }
@@ -95,26 +122,19 @@
             const resp = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${symbol}&interval=1&limit=3`);
             const data = await resp.json();
             const k = data.result.list;
-            let hi = Math.max(parseFloat(k[0][2]), parseFloat(k[1][2]), parseFloat(k[2][2]));
-            let lo = Math.min(parseFloat(k[0][3]), parseFloat(k[1][3]), parseFloat(k[2][3]));
+            let hi = Math.max(...k.map(x => parseFloat(x[2])));
+            let lo = Math.min(...k.map(x => parseFloat(x[3])));
             return ((hi - lo) / lo) * 100;
         } catch (e) { return 0; }
     }
 
-    function getTvUrl(symbol, tf) {
-    // Aggiungiamo 'USER;' prima dell'ID per richiamare lo script pubblico
-    return `https://s.tradingview.com/widgetembed/?symbol=BYBIT:${symbol}.P&interval=${tf}&theme=dark&style=1&studies=USER;${bullScriptID}`;
-    }
-
     function renderPage() {
+        closeAllWebSockets();
         const grid = document.getElementById('chartGrid');
         grid.innerHTML = "";
         const start = currentPage * chartsPerPage;
         const pageItems = allValidData.slice(start, start + chartsPerPage);
-        const totalPages = Math.ceil(allValidData.length / chartsPerPage);
-        document.getElementById('pageInfo').innerText = `${currentPage + 1} / ${totalPages || 1}`;
-        document.getElementById('prevPage').disabled = currentPage === 0;
-        document.getElementById('nextPage').disabled = start + chartsPerPage >= allValidData.length;
+        document.getElementById('pageInfo').innerText = `${currentPage + 1} / ${Math.ceil(allValidData.length/chartsPerPage) || 1}`;
 
         pageItems.forEach(item => {
             const card = document.createElement('div');
@@ -124,40 +144,119 @@
                 <div class="chart-header">
                     <a href="https://www.bybit.com/trade/usdt/${item.symbol}" target="_blank">🔗 ${item.symbol}</a>
                     <button class="btn-multi" onclick="toggleMultiframe('${item.symbol}')">MULTIFRAME</button>
-                    <span class="range-badge">1m: ${item.range.toFixed(2)}%</span>
+                    <span>1m: ${item.range.toFixed(2)}%</span>
                 </div>
-                <div class="frames-container single-view" id="container-${item.symbol}">
-                    <iframe src="${getTvUrl(item.symbol, viewTF)}" allowfullscreen></iframe>
-                </div>
+                <div class="frames-container single-view" id="container-${item.symbol}"></div>
             `;
             grid.appendChild(card);
+            initChartGroup(item.symbol, `container-${item.symbol}`, viewTF);
         });
-        document.getElementById('status').innerText = `Tot: ${allValidData.length}`;
+    }
+
+    async function initChartGroup(symbol, containerId, tf) {
+        const container = document.getElementById(containerId);
+        const isMulti = container.classList.contains('multi-view');
+        container.innerHTML = ""; 
+        const tfs = isMulti ? ['1', '5', '30', 'D'] : [tf];
+        
+        const dResp = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${symbol}&interval=D&limit=1`);
+        const dJson = await dResp.json();
+        const dailyK = dJson.result.list[0];
+        const dailyRange = { hi: parseFloat(dailyK[2]), lo: parseFloat(dailyK[3]) };
+
+        tfs.forEach(t => {
+            const div = document.createElement('div');
+            div.className = 'chart-item';
+            container.appendChild(div);
+            createLiveChart(symbol, div, t, dailyRange);
+        });
+    }
+
+    async function createLiveChart(symbol, element, tf, dailyRange) {
+        const chart = LightweightCharts.createChart(element, {
+            layout: { background: { color: '#1e222d' }, textColor: '#d1d4dc' },
+            grid: { vertLines: { visible: false }, horzLines: { visible: false } },
+            rightPriceScale: { borderVisible: false },
+            timeScale: { borderVisible: false, timeVisible: true },
+            crosshair: { horzLine: { visible: false } }
+        });
+
+        const candleSeries = chart.addCandlestickSeries({
+            upColor: '#00ff88', downColor: '#ff3b30', borderVisible: false, 
+            wickUpColor: '#00ff88', wickDownColor: '#ff3b30', priceLineVisible: false 
+        });
+
+        const resp = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${symbol}&interval=${tf}&limit=400`);
+        const result = await resp.json();
+        const data = result.result.list.map(d => ({
+            time: parseInt(d[0]) / 1000, open: parseFloat(d[1]), high: parseFloat(d[2]), low: parseFloat(d[3]), close: parseFloat(d[4])
+        })).reverse();
+
+        candleSeries.setData(data);
+
+        let currentHi = dailyRange.hi;
+        let currentLo = dailyRange.lo;
+
+        const highLine = candleSeries.createPriceLine({
+            price: currentHi, color: '#00ff88', lineWidth: 1, 
+            lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: false, title: ''
+        });
+        const lowLine = candleSeries.createPriceLine({
+            price: currentLo, color: '#ff3b30', lineWidth: 1, 
+            lineStyle: LightweightCharts.LineStyle.Dashed, axisLabelVisible: false, title: ''
+        });
+
+        const emas = [{p:5, c:'red'}, {p:10, c:'yellow'}, {p:60, c:'green'}, {p:223, c:'#a020f0'}].map(e => {
+            const s = chart.addLineSeries({ color: e.c, lineWidth: 1, lastValueVisible: false, priceLineVisible: false });
+            s.setData(calcEMA(data, e.p));
+            return { s, p: e.p };
+        });
+
+        const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
+        ws.onopen = () => ws.send(JSON.stringify({ op: "subscribe", args: [`kline.${tf}.${symbol}`] }));
+        ws.onmessage = (msg) => {
+            const res = JSON.parse(msg.data);
+            if (res.data) {
+                const k = res.data[0];
+                const candle = { time: k.start / 1000, open: parseFloat(k.open), high: parseFloat(k.high), low: parseFloat(k.low), close: parseFloat(k.close) };
+                candleSeries.update(candle);
+                if (candle.high > currentHi) { currentHi = candle.high; highLine.applyOptions({ price: currentHi }); }
+                if (candle.low < currentLo) { currentLo = candle.low; lowLine.applyOptions({ price: currentLo }); }
+                emas.forEach(e => {
+                    const last = calcEMA([...data, candle], e.p).pop();
+                    e.s.update(last);
+                });
+            }
+        };
+        activeWebSockets.push(ws);
+        new ResizeObserver(() => chart.applyOptions({ width: element.clientWidth, height: element.clientHeight })).observe(element);
+    }
+
+    function calcEMA(data, period) {
+        const k = 2 / (period + 1);
+        let ema = [];
+        let prev = data[0].close;
+        data.forEach(d => {
+            const val = d.close * k + prev * (1 - k);
+            ema.push({ time: d.time, value: val });
+            prev = val;
+        });
+        return ema;
     }
 
     function toggleMultiframe(symbol) {
         const card = document.getElementById(`card-${symbol}`);
         const container = document.getElementById(`container-${symbol}`);
-        const btn = card.querySelector('.btn-multi');
         const isMulti = card.classList.toggle('is-multiframe');
-        btn.classList.toggle('active');
-        if (isMulti) {
-            container.classList.replace('single-view', 'multi-view');
-            container.innerHTML = `
-                <iframe src="${getTvUrl(symbol, '1')}"></iframe>
-                <iframe src="${getTvUrl(symbol, '5')}"></iframe>
-                <iframe src="${getTvUrl(symbol, '30')}"></iframe>
-                <iframe src="${getTvUrl(symbol, 'D')}"></iframe>
-            `;
-        } else {
-            container.classList.replace('multi-view', 'single-view');
-            container.innerHTML = `<iframe src="${getTvUrl(symbol, viewTF)}"></iframe>`;
-        }
+        container.className = `frames-container ${isMulti ? 'multi-view' : 'single-view'}`;
+        initChartGroup(symbol, `container-${symbol}`, viewTF);
     }
 
-    function nextPage() { currentPage++; renderPage(); document.getElementById('chartGrid').scrollTop = 0; }
-    function prevPage() { currentPage--; renderPage(); document.getElementById('chartGrid').scrollTop = 0; }
-    function syncChartsTimeframe(tf) { viewTF = tf; localStorage.setItem('viagra-view-tf', tf); renderPage(); }
+    function closeAllWebSockets() { activeWebSockets.forEach(ws => ws.close()); activeWebSockets = []; }
+    function nextPage() { currentPage++; renderPage(); }
+    function prevPage() { currentPage--; renderPage(); }
+    function syncChartsTimeframe(tf) { viewTF = tf; localStorage.setItem('viagra-view-tf', tf); startScanner(); }
+
     window.onload = startScanner;
 </script>
 </body>
