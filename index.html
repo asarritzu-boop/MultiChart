@@ -376,7 +376,7 @@ window.addEventListener("message", (event) => {
                         <span class="range-val">${item.range.toFixed(2)}%</span>
                     </div>
                     <select class="local-tf" onchange="initChart('${item.symbol}', '${containerId}', this.value)">${tfOptions}</select>
-                    <button class="btn-multi" onclick="window.open(window.location.origin + window.location.pathname + '?symbol=${item.symbol}', '_blank')">MULTI</button>
+                    <button class="btn-multi" onclick="openMultiChart('${item.symbol}')">MULTI</button>
                 </div>
                 <div class="frames-container" id="${containerId}"></div>
             `;
