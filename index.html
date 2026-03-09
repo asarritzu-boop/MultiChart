@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://asarritzu-boop.github.io/MultiChart/">
+    <meta property="og:title" content="Bybit Scanner & Bull Master">
+    <meta property="og:description" content="Scanner Real-Time con EMA e Multiframe.">
+    <meta property="og:image" content="https://asarritzu-boop.github.io/MultiChart/icona-512.png">
+    <meta property="og:image:type" content="image/png">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#0c0d10">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Bybit Scanner">
+    
+    <link rel="icon" type="image/png" href="icona-192.png">
+    <link rel="apple-touch-icon" href="icona-192.png">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bybit Scanner & Bull Master</title>
+    <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js"></script>
+    
+    <style>
+        /* --- VARIABILI GLOBALI (Unite da entrambi i file) --- */
+        :root { 
+            --bg: #0c0d10; --panel: #1e222d; --accent: #2962ff; --text: #d1d4dc; 
+            --success: #00ff88; --pinned: #ffcc00;
+            --bull-orange: #f3a63b; --bull-green: #00ff7f; --bull-red: #ff4500; 
+            --bull-blue: #00d4ff; --gold: #ffd700; --purple: #a020f0;
+        }
+        
+        html, body { background: var(--bg); color: var(--text); margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Trebuchet MS', 'Inter', sans-serif; overflow: hidden; }
+        
+        /* --- LAYOUT PRINCIPALE INDEX4 --- */
+        #app-container { width: 100%; height: 100vh; display: flex; flex-direction: column; }
+      /* Modifica queste righe nel CSS di index4.html */
+#toolbar { 
+    padding: 10px 15px; 
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    flex-wrap: wrap; /* Permette di andare a capo su mobile */
+    gap: 10px;       /* Aggiunge spazio tra gli elementi quando vanno a capo */
+    background: var(--panel); 
+    border-bottom: 1px solid #363a45; 
+    flex-shrink: 0; 
+}
+
+.controls-left { 
+    display: flex; 
+    gap: 8px; 
+    align-items: center; 
+    flex-wrap: wrap; /* Evita che i bottoni escano dallo schermo */
+}
+
+        .pagination { display: flex; gap: 12px; align-items: center; background: #2a2e39; padding: 5px 12px; border-radius: 20px; }
+        
+        select, button { background: #2a2e39; color: white; border: 1px solid #434651; padding: 8px 10px; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px; }
+        
+        #chartGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; padding: 10px; flex-grow: 1; overflow-y: auto; }
+        @media (max-width: 1024px) { #chartGrid { grid-template-columns: repeat(2, 1fr); } }
+        @media (max-width: 768px) { #chartGrid { grid-template-columns: 1fr; } }
+        
+        .chart-card { background: var(--panel); border-radius: 8px; overflow: hidden; height: 450px; border: 1px solid #363a45; display: flex; flex-direction: column; }
+        .is-pinned { border: 2px solid var(--pinned) !important; }
+        
+        .chart-header { padding: 6px 10px; font-size: 12px; display: flex; justify-content: space-between; align-items: center; background: #2a2e39; }
+        .pair-info { display: flex; align-items: center; gap: 8px; }
+        .chart-header a { color: var(--success); text-decoration: none; font-weight: bold; font-size: 14px; }
+        .range-val { color: #848e9c; font-size: 11px; margin-left: 5px; }
+        
+        .btn-pin { background: none; border: none; color: #5d606b; font-size: 18px; cursor: pointer; padding: 0; display: flex; align-items: center; }
+        .is-pinned .btn-pin { color: var(--pinned); }
+        
+        .btn-multi { background: var(--accent); font-size: 10px; padding: 4px 6px; border: none; border-radius: 3px; color: white; cursor: pointer; }
+        .local-tf { padding: 2px 4px; font-size: 11px; background: #1e222d; border: 1px solid #434651; }
+        .frames-container { flex-grow: 1; width: 100%; height: 100%; }
+
+        #multi-container { display: none; width: 100vw; height: 100vh; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 4px; padding: 4px; box-sizing: border-box; background: #000; }
+        .multi-box { background: #1e222d; border-radius: 4px; overflow: hidden; position: relative; border: 1px solid #363a45; }
+        .multi-label select { background: rgba(30, 34, 45, 0.8); color: #00ff88; border: 1px solid #434651; border-radius: 3px; font-size: 11px; font-weight: bold; cursor: pointer; outline: none; padding: 2px; }
+        .multi-label select option { background: #1e222d; color: white; }
+        
+        .loader { text-align: center; padding: 40px; grid-column: 1 / -1; font-size: 18px; color: var(--accent); }
+        
+        @media (orientation: landscape) {
+            #app-container, #multi-container { height: 100vw; height: -webkit-fill-available; }
+            #chartGrid { grid-template-columns: repeat(3, 1fr); }
+        }
+
+        /* --- STILI SIMPLE.HTML (BULL MASTER) --- */
+        #scanner-view { display: none; flex-grow: 1; overflow-y: auto; padding: 15px; background: #050505; }
+        .scanner-header { text-align: center; padding: 20px; border-bottom: 1px solid #333; margin-bottom: 20px; background: #050505; }
+        .grid-bull { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 15px; }
+        
+        @keyframes ultimate-glow { 0% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.2); border-color: var(--gold); } 50% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.7); border-color: #fff; } 100% { box-shadow: 0 0 10px rgba(255, 215, 0, 0.2); border-color: var(--gold); } }
+        @keyframes danger-pulse { 0% { transform: scale(1); box-shadow: 0 0 10px rgba(255, 69, 0, 0.5); } 50% { transform: scale(1.02); box-shadow: 0 0 25px rgba(255, 69, 0, 0.9); } 100% { transform: scale(1); box-shadow: 0 0 10px rgba(255, 69, 0, 0.5); } }
+        @keyframes squeeze-glow { 0% { box-shadow: 0 0 5px var(--bull-blue); } 50% { box-shadow: 0 0 20px var(--bull-blue); } 100% { box-shadow: 0 0 5px var(--bull-blue); } }
+        @keyframes flash-green { 0% { box-shadow: 0 0 10px rgba(0, 255, 127, 0.2); border-color: var(--bull-green); } 50% { box-shadow: 0 0 30px rgba(0, 255, 127, 0.8); border-color: #fff; } 100% { box-shadow: 0 0 10px rgba(0, 255, 127, 0.2); border-color: var(--bull-green); } }
+        @keyframes flash-red { 0% { box-shadow: 0 0 10px rgba(255, 69, 0, 0.2); border-color: var(--bull-red); } 50% { box-shadow: 0 0 30px rgba(255, 69, 0, 0.8); border-color: #fff; } 100% { box-shadow: 0 0 10px rgba(255, 69, 0, 0.2); border-color: var(--bull-red); } }
+        
+        .ULTIMATE-COMBO { animation: ultimate-glow 1.5s infinite; border-left: 12px solid var(--gold) !important; background: linear-gradient(145deg, #111 0%, #1a1500 100%); }
+        .bad-allungato-long { animation: flash-green 1s infinite; border-left: 12px solid var(--bull-green) !important; background: linear-gradient(145deg, #111 0%, #001a0d 100%); }
+        .bad-allungato-short { animation: flash-red 1s infinite; border-left: 12px solid var(--bull-red) !important; background: linear-gradient(145deg, #111 0%, #1a0500 100%); }
+        .is-squeeze { animation: squeeze-glow 2s infinite; border-style: double !important; }
+
+        .card-bull { background: #111; border-radius: 12px; padding: 18px; border: 1px solid #333; border-left: 8px solid #444; position: relative; }
+        .symbol-header-bull { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+        
+        .symbol-name-bull { font-size: 1.2em; font-weight: 900; color: white; letter-spacing: -1px; text-decoration: none; transition: color 0.2s; }
+        .symbol-name-bull:hover { color: var(--bull-orange); text-decoration: underline; }
+        
+        .daily-info { display: flex; justify-content: space-between; font-size: 0.75em; color: #888; margin-bottom: 10px; }
+        .price-bar-container { height: 4px; background: #333; border-radius: 2px; margin: 5px 0 15px 0; position: relative; }
+        .price-dot { height: 8px; width: 8px; background: #fff; border-radius: 50%; position: absolute; top: -2px; transform: translateX(-50%); box-shadow: 0 0 5px #fff; }
+
+        .main-stats { display: flex; gap: 10px; margin-bottom: 15px; }
+        .stat-badge { flex: 1; padding: 10px; border-radius: 8px; text-align: center; font-weight: 900; font-size: 1.1em; }
+        .range-badge { background: var(--bull-orange); color: #000; }
+        .flow-badge { background: var(--bull-blue); color: #000; }
+
+        .touch-pressure-alert { background: var(--bull-green); color: black; padding: 10px; border-radius: 8px; text-align: center; font-weight: 900; font-size: 0.95em; margin-bottom: 12px; text-transform: uppercase; animation: danger-pulse 1s infinite; border: 2px solid #fff; }
+        .touch-support-alert { background: #ff003c; color: white; padding: 10px; border-radius: 8px; text-align: center; font-weight: 900; font-size: 0.95em; margin-bottom: 12px; text-transform: uppercase; border: 2px solid #fff; animation: danger-pulse 1s infinite; }
+
+        .pre-bad-alert { background: rgba(255, 255, 255, 0.1); color: #fff; border: 1px dashed #fff; padding: 8px; border-radius: 8px; text-align: center; font-weight: 900; font-size: 0.85em; margin-bottom: 8px; }
+        .viagra-alert { background: var(--purple); color: white; padding: 8px; border-radius: 8px; text-align: center; font-weight: 900; font-size: 0.85em; margin-bottom: 8px; }
+        .gap-alert { background: rgba(243, 166, 59, 0.1); color: var(--bull-orange); padding: 8px; border-radius: 8px; text-align: center; font-weight: bold; border: 1px solid var(--bull-orange); margin-bottom: 8px; }
+        .squeeze-badge { background: var(--bull-blue); color: #000; padding: 2px 6px; border-radius: 4px; font-size: 0.65em; font-weight: 900; margin-left: 5px; vertical-align: middle; }
+        
+        .tf-table { width: 100%; font-size: 0.9em; margin: 10px 0; border-collapse: collapse; background: #1a1a1a; border-radius: 8px; overflow: hidden; }
+        .tf-row { border-bottom: 1px solid #222; }
+        .tf-row td { padding: 3px 8px; text-align: center; }
+
+        .bad-signal-box { padding: 10px; border-radius: 8px; margin-top: 8px; text-align: center; font-weight: 900; font-size: 0.9em; border: 2px solid transparent; }
+        .bad-long { background: rgba(0, 255, 127, 0.15); border-color: var(--bull-green); color: var(--bull-green); }
+        .bad-short { background: rgba(255, 69, 0, 0.15); border-color: var(--bull-red); color: var(--bull-red); }
+
+        .btn-bull { background: var(--bull-orange); border: none; padding: 12px 25px; border-radius: 8px; font-weight: 900; cursor: pointer; color: #000; }
+        @keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.2; }
+    100% { opacity: 1; }
+}
+.blinking {
+    animation: blink 1.5s infinite;
+}
+
+    </style>
+</head>
+<body>
+    <div id="multi-container">
+        <button onclick="closeMultiChart()" style="position: fixed; top: 10px; left: 10px; z-index: 9999; background: var(--bull-orange); color: black; border: none; padding: 10px 15px; border-radius: 5px; font-weight: bold; cursor: pointer; box-shadow: 0 0 10px rgba(0,0,0,0.5);">
+        ⬅ Torna allo Scanner
+    </button>
+        <div class="multi-box"><div class="multi-label" id="label-mc1"></div><div id="mc1" style="height:100%"></div></div>
+        <div class="multi-box"><div class="multi-label" id="label-mc2"></div><div id="mc2" style="height:100%"></div></div>
+        <div class="multi-box"><div class="multi-label" id="label-mc3"></div><div id="mc3" style="height:100%"></div></div>
+        <div class="multi-box"><div class="multi-label" id="label-mc4"></div><div id="mc4" style="height:100%"></div></div>
+    </div>
+    
+
+    <div id="app-container">
+        <div id="toolbar">
+            
+            <div class="controls-left">
+    <button onclick="toggleFS()" title="Schermo Intero">⛶</button>
+    <button onclick="shareApp()" title="Condividi App">📤</button>
+    <button id="viewChartsBtn" onclick="switchView('charts')" style="background: var(--accent);">📊 Charts</button>
+    <button id="viewScannerBtn" onclick="switchView('scanner')" style="background: var(--bull-orange); color: black;">🔦 Signals</button>
+    
+    <span id="scanner-controls" style="display: none; align-items: center; gap: 8px; margin-left: 5px;">
+        <button id="btn-bull-scan" onclick="toggleBullScan()" style="font-size: 18px; background: transparent; border: none; cursor: pointer; padding: 0;" title="Play/Pause Scan">⏯️</button>
+        <span id="scanning-title" style="color:var(--bull-orange); font-weight:bold; font-size:14px; text-transform:uppercase;">scanning</span>
+    </span>
+    
+    <button id="scanBtn" onclick="startScanner()" style="background: #363a45;">🚀 Full Scan (charts)</button>
+    
+
+                <select id="tf-select" onchange="syncGlobalTF(this.value)">
+                    <option value="1">1m</option><option value="5">5m</option><option value="15">15m</option>
+                    <option value="30" selected>30m</option><option value="60">1h</option><option value="240">4h</option>
+                    <option value="D">1D</option><option value="W">1W</option><option value="M">1M</option>
+                </select>
+            </div>
+            <div class="pagination" id="pagination-ctrl">
+                <button onclick="prevPage()">◀</button>
+                <span id="pageInfo">- / -</span>
+                <button onclick="nextPage()">▶</button>
+            </div>
+        </div>
+
+        <div id="chartGrid"></div>
+
+        <div id="scanner-view">
+    <div id="results-bull" class="grid-bull"></div>
+</div>
+
+
+            
+    
+<script>
+    // --- VARIABILI GLOBALI INDEX4 ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const multiSymbol = urlParams.get('symbol');
+    const TF_LIST = [{v:'1',n:'1m'},{v:'5',n:'5m'},{v:'15',n:'15m'},{v:'30',n:'30m'},{v:'60',n:'1h'},{v:'240',n:'4h'},{v:'D',n:'1D'},{v:'W',n:'1W'},{v:'M',n:'1M'}];
+
+    let allValidData = [];
+    let pinnedPairs = JSON.parse(localStorage.getItem('pinned-pairs') || '[]');
+    let currentPage = 0;
+    const chartsPerPage = 6;
+    const viagraDominanceDetectionLimit = 10; // Impostato in base alle tue istruzioni
+    let globalTF = localStorage.getItem('viagra-view-tf') || '30';
+    let activeWS = [];
+    
+    // --- VARIABILI GLOBALI SIMPLE.HTML ---
+    let isBullScanning = false; 
+    let bullScanInterval;
+
+    // --- LOGICA DI SWITCH DELLE VISTE SPA ---
+    function switchView(view) {
+    const chartGrid = document.getElementById('chartGrid');
+    const scannerView = document.getElementById('scanner-view');
+    const pagination = document.getElementById('pagination-ctrl');
+    const tfSelect = document.getElementById('tf-select');
+    const scanBtn = document.getElementById('scanBtn');
+    const scannerControls = document.getElementById('scanner-controls'); // Riferimento al nuovo blocco
+
+    if (view === 'scanner') {
+        chartGrid.style.display = 'none';
+        scannerView.style.display = 'block';
+        pagination.style.display = 'none';
+        tfSelect.style.display = 'none';
+        scanBtn.style.display = 'none';
+        
+        // Mostra i controlli dello scanner e attiva il lampeggio
+        scannerControls.style.display = 'inline-flex';
+        document.getElementById('scanning-title').classList.add('blinking');
+        
+        isBullScanning = true;
+        runBullScan(); 
+        if(!bullScanInterval) bullScanInterval = setInterval(runBullScan, 10000);
+    } else {
+        chartGrid.style.display = 'grid';
+        scannerView.style.display = 'none';
+        pagination.style.display = 'flex';
+        tfSelect.style.display = 'inline-block';
+        scanBtn.style.display = 'inline-block';
+        
+        // Nascondi i controlli dello scanner e ferma il lampeggio
+        scannerControls.style.display = 'none';
+        document.getElementById('scanning-title').classList.remove('blinking');
+        
+        isBullScanning = false;
+        clearInterval(bullScanInterval);
+        bullScanInterval = null;
+    }
+}
+
+
+    // --- INIZIALIZZAZIONE ---
+    if (multiSymbol) {
+        document.getElementById('app-container').style.display = 'none';
+        document.getElementById('multi-container').style.display = 'grid';
+
+        const createSelector = (containerId, selectedTf) => {
+            let options = TF_LIST.map(t => `<option value="${t.v}" ${t.v === selectedTf ? 'selected' : ''}>${t.n}</option>`).join('');
+            return `<select onchange="initChart('${multiSymbol}', '${containerId}', this.value)">${options}</select>`;
+        };
+
+        const defaults = { mc1: '1', mc2: '5', mc3: '30', mc4: 'D' };
+        
+        Object.keys(defaults).forEach(id => {
+            document.getElementById(`label-${id}`).innerHTML = createSelector(id, defaults[id]);
+            setTimeout(() => initChart(multiSymbol, id, defaults[id]), 150);
+        });
+    } else {
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(err => console.log(err));
+        window.onload = () => { switchView('charts'); startScanner(); };
+    }
+
+
+    /* =================================================================================
+       ========================= LOGICA INDEX4 (GRAFICI) ===============================
+       ================================================================================= */
+
+// Ascolta i messaggi provenienti dallo scanner
+window.addEventListener("message", (event) => {
+    // Se riceviamo un messaggio con il simbolo, aggiorniamo il primo grafico
+    if (event.data && event.data.type === 'SELECT_COIN') {
+        const symbol = event.data.symbol;
+        console.log("Ricevuta richiesta per:", symbol);
+        
+        // Cerchiamo il primo contenitore di grafici disponibile nella griglia
+        const firstChartContainer = document.querySelector('.frames-container');
+        if (firstChartContainer) {
+            const containerId = firstChartContainer.id;
+            // Chiamiamo la tua funzione esistente per inizializzare il grafico
+            initChart(symbol, containerId, globalTF);
+        }
+    }
+}, false);
+
+
+    async function startScanner() {
+        closeWS();
+        const grid = document.getElementById('chartGrid');
+        const scanBtn = document.getElementById('scanBtn');
+        scanBtn.disabled = true;
+        grid.innerHTML = '<div class="loader">Scanning ALL Bybit pairs in progress...</div>';
+        
+        try {
+            const resp = await fetch('https://api.bybit.com/v5/market/tickers?category=linear');
+            const json = await resp.json();
+            const pairs = json.result.list.filter(i => i.symbol.endsWith('USDT'));
+            
+            allValidData = [];
+            
+            const batchSize = 50;
+            for (let i = 0; i < pairs.length; i += batchSize) {
+                const batch = pairs.slice(i, i + batchSize);
+                await Promise.all(batch.map(async (p) => {
+                    const range = await getRange(p.symbol);
+                    if (range >= 0.5 || pinnedPairs.includes(p.symbol)) {
+                        allValidData.push({ symbol: p.symbol, range: range, pinned: pinnedPairs.includes(p.symbol) });
+                    }
+                }));
+                grid.innerHTML = `<div class="loader">analyzed ${Math.min(i + batchSize, pairs.length)} di ${pairs.length} asset...</div>`;
+            }
+
+            currentPage = 0;
+            render();
+        } catch (e) { 
+            grid.innerHTML = 'Errore durante la scansione completa.'; 
+            console.error(e);
+        } finally {
+            scanBtn.disabled = false;
+        }
+    }
+
+    async function getRange(symbol) {
+        try {
+            const r = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${symbol}&interval=1&limit=5`);
+            const j = await r.json();
+            const k = j.result.list;
+            if(!k || k.length === 0) return 0;
+            let h = Math.max(...k.map(x => parseFloat(x[2])));
+            let l = Math.min(...k.map(x => parseFloat(x[3])));
+            return ((h - l) / l) * 100;
+        } catch (e) { return 0; }
+    }
+
+    function togglePin(symbol) {
+        if (pinnedPairs.includes(symbol)) {
+            pinnedPairs = pinnedPairs.filter(p => p !== symbol);
+        } else {
+            pinnedPairs.push(symbol);
+        }
+        localStorage.setItem('pinned-pairs', JSON.stringify(pinnedPairs));
+        allValidData.forEach(item => { item.pinned = pinnedPairs.includes(item.symbol); });
+        render();
+    }
+
+    function render() {
+        closeWS();
+        const grid = document.getElementById('chartGrid');
+        grid.innerHTML = "";
+        
+        allValidData.sort((a, b) => {
+            if (a.pinned && b.pinned) return pinnedPairs.indexOf(a.symbol) - pinnedPairs.indexOf(b.symbol);
+            if (a.pinned) return -1;
+            if (b.pinned) return 1;
+            return b.range - a.range;
+        });
+
+        const start = currentPage * chartsPerPage;
+        const items = allValidData.slice(start, start + chartsPerPage);
+        document.getElementById('pageInfo').innerText = `${currentPage + 1} / ${Math.ceil(allValidData.length/chartsPerPage) || 1}`;
+
+        if (items.length === 0) {
+            grid.innerHTML = '<div class="loader">Nessuna coppia trovata con i criteri attuali.</div>';
+            return;
+        }
+
+        items.forEach((item) => {
+            const card = document.createElement('div');
+            card.className = `chart-card ${item.pinned ? 'is-pinned' : ''}`;
+            let tfOptions = TF_LIST.map(t => `<option value="${t.v}" ${t.v === globalTF ? 'selected' : ''}>${t.n}</option>`).join('');
+            
+            const containerId = `c-${item.symbol}`;
+            card.innerHTML = `
+                <div class="chart-header">
+                    <div class="pair-info">
+                        <button class="btn-pin" onclick="togglePin('${item.symbol}')">📌</button>
+                      <a href="https://www.bybit.com/trade/usdt/${item.symbol}?affiliate_id=6YD2ZO" target="_blank">${item.symbol}</a>
+                        <span class="range-val">${item.range.toFixed(2)}%</span>
+                    </div>
+                    <select class="local-tf" onchange="initChart('${item.symbol}', '${containerId}', this.value)">${tfOptions}</select>
+                    <button class="btn-multi" onclick="openMultiChart('${item.symbol}')">MULTI</button>
+                </div>
+                <div class="frames-container" id="${containerId}"></div>
+            `;
+            grid.appendChild(card);
+            setTimeout(() => initChart(item.symbol, containerId, globalTF), 100);
+        });
+    }
+
+    function updateMultiChart(symbol, containerId, tf) {
+        initChart(symbol, containerId, tf);
+    }
+
+    async function initChart(symbol, containerId, tf) {
+    const el = document.getElementById(containerId);
+    if(!el || el.clientWidth === 0) return; // Evita di inizializzare su un contenitore senza dimensioni
+    el.innerHTML = "";
+    
+        const chart = LightweightCharts.createChart(el, {
+            layout: { background: { color: '#1e222d' }, textColor: '#d1d4dc' },
+            grid: { vertLines: { visible: false }, horzLines: { visible: false } },
+            timeScale: { borderVisible: false, timeVisible: true },
+            rightPriceScale: { borderVisible: false },
+            crosshair: { horzLine: { visible: false } }
+        });
+
+        const series = chart.addCandlestickSeries({ 
+            upColor: '#00ff88', downColor: '#ff3b30', borderVisible: false, 
+            wickUpColor: '#00ff88', wickDownColor: '#ff3b30', priceLineVisible: false 
+        });
+
+        try {
+            const dResp = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${symbol}&interval=D&limit=1`);
+            const dJ = await dResp.json();
+            if(dJ.result && dJ.result.list[0]) {
+                const dK = dJ.result.list[0];
+                series.createPriceLine({ price: parseFloat(dK[2]), color: '#00ff88', lineStyle: 2, title: 'MAX D' });
+                series.createPriceLine({ price: parseFloat(dK[3]), color: '#ff3b30', lineStyle: 2, title: 'MIN D' });
+            }
+        } catch(e) {}
+
+        try {
+            const resp = await fetch(`https://api.bybit.com/v5/market/kline?category=linear&symbol=${symbol}&interval=${tf}&limit=200`);
+            const rJ = await resp.json();
+            if(rJ.result && rJ.result.list) {
+                const data = rJ.result.list.map(d => ({ 
+                    time: parseInt(d[0]) / 1000, open: parseFloat(d[1]), high: parseFloat(d[2]), low: parseFloat(d[3]), close: parseFloat(d[4]) 
+                })).reverse();
+                series.setData(data);
+
+                [{p:5, c:'red'}, {p:10, c:'yellow'}, {p:60, c:'green'}, {p:223, c:'#a020f0'}].forEach(e => {
+                    const s = chart.addLineSeries({ color: e.c, lineWidth: 1, lastValueVisible: false, priceLineVisible: false });
+                    s.setData(calcEMA(data, e.p));
+                });
+            }
+        } catch(e) {}
+
+        const ws = new WebSocket('wss://stream.bybit.com/v5/public/linear');
+        ws.onopen = () => ws.send(JSON.stringify({ op: "subscribe", args: [`kline.${tf}.${symbol}`] }));
+        ws.onmessage = (m) => {
+            const msg = JSON.parse(m.data);
+            if (msg.data) {
+                const k = msg.data[0];
+                series.update({ time: k.start / 1000, open: parseFloat(k.open), high: parseFloat(k.high), low: parseFloat(k.low), close: parseFloat(k.close) });
+            }
+        };
+        activeWS.push(ws);
+        new ResizeObserver(() => chart.applyOptions({ width: el.clientWidth, height: el.clientHeight })).observe(el);
+    }
+
+    function calcEMA(data, p) {
+        if (!data.length) return [];
+        const k = 2 / (p + 1);
+        let ema = []; let prev = data[0].close;
+        data.forEach(d => {
+            const v = d.close * k + prev * (1 - k);
+            ema.push({ time: d.time, value: v });
+            prev = v;
+        });
+        return ema;
+    }
+
+    function shareApp() {
+        const url = window.location.origin + window.location.pathname;
+        if (navigator.share) navigator.share({ title: 'Bybit MultiChart', url: url });
+        else alert("Copia Link: " + url);
+    }
+
+    function closeWS() { activeWS.forEach(w => w.close()); activeWS = []; }
+    function nextPage() { if ((currentPage + 1) * chartsPerPage < allValidData.length) { currentPage++; render(); } }
+    function prevPage() { if (currentPage > 0) { currentPage--; render(); } }
+    function syncGlobalTF(tf) { globalTF = tf; localStorage.setItem('viagra-view-tf', tf); render(); }
+    function toggleFS() { if(!document.fullscreenElement) document.documentElement.requestFullscreen(); else document.exitFullscreen(); }
+    
+    /* =================================================================================
+       ========================= LOGICA SIMPLE.HTML (BULL MASTER) ======================
+       ================================================================================= */
+function sendToScanner(symbol) {
+    if (window.opener) {
+        // Invia il simbolo alla scheda che ha aperto lo scanner
+        window.opener.postMessage({ type: 'SELECT_COIN', symbol: symbol }, "*");
+        // Opzionale: riporta il focus sulla scheda dei grafici
+        window.opener.focus();
+    } else {
+        alert("Per funzionare, apri lo scanner partendo dal tasto 'Condividi' o mantieni le tab collegate.");
+    }
+}
+
+    const apiBull = (path, p) => fetch(`https://api.bybit.com/v5/market/${path}?${new URLSearchParams(p)}`).then(r => r.json());
+
+    function getEMABull(p, n) {
+        if (p.length < n) return p[p.length-1];
+        let k = 2/(n+1);
+        return p.reduce((acc, val, i) => i === 0 ? val : val * k + acc * (1-k), p[0]);
+    }
+
+    function checkEMA10Rec(prices) {
+        const ema10 = getEMABull(prices, 10), last = prices[prices.length-1], prev = prices[prices.length-2];
+        if (last > ema10 && prev < ema10) return { type: 'LONG', stat: 'LIVE' };
+        if (last < ema10 && prev > ema10) return { type: 'SHORT', stat: 'LIVE' };
+        return last > ema10 ? { type: 'LONG', stat: 'TREND' } : { type: 'SHORT', stat: 'TREND' };
+    }
+
+    function detectBadPattern(list, tfLabel) {
+        if (list.length < 3) return null;
+        const c1 = list[list.length-3], c2 = list[list.length-2], c3 = list[list.length-1];
+        const b1 = Math.abs(c1.c-c1.o), b2 = Math.abs(c2.c-c2.o);
+        if (c1.c > c1.o && c2.c < c2.o && b2 < b1 && c3.c > c1.h) return { tf: tfLabel, side: 'LONG', msg: `${tfLabel} BREAKOUT BAD` };
+        if (c1.c < c1.o && c2.c > c2.o && b2 < b1 && c3.c < c1.l) return { tf: tfLabel, side: 'SHORT', msg: `${tfLabel} BREAKDOWN BAD` };
+        return null;
+    }
+
+    function detectBadAllungato(list, tfLabel) {
+        if (list.length < 5) return null;
+        const c1 = list[list.length-5];
+        const others = list.slice(list.length-4);
+        const allInside = others.every(c => c.h <= c1.h && c.l >= c1.l);
+        if (!allInside) return null;
+        if (c1.c > c1.o) {
+            const highs = others.map(c => c.h);
+            const isRising = highs[3] > highs[2] && highs[2] >= highs[1];
+            const isProximity = (c1.h - highs[3]) / c1.h * 100 < 0.05;
+            if (isRising && isProximity) return { tf: tfLabel, side: 'LONG', msg: `${tfLabel} EXTENDED LONG` };
+        }
+        if (c1.c < c1.o) {
+            const lows = others.map(c => c.l);
+            const isFalling = lows[3] < lows[2] && lows[2] <= lows[1];
+            const isProximity = (lows[3] - c1.l) / c1.l * 100 < 0.05;
+            if (isFalling && isProximity) return { tf: tfLabel, side: 'SHORT', msg: `${tfLabel} EXTENDED SHORT` };
+        }
+        return null;
+    }
+
+    function detectSqueeze(list, tfLabel) {
+        if (list.length < 30) return null;
+        const lookback = list.slice(-30, -10);
+        const avgRange = lookback.reduce((acc, c) => acc + (c.h - c.l), 0) / lookback.length;
+        const recent = list.slice(-5);
+        const currentRange = recent.reduce((acc, c) => acc + (c.h - c.l), 0) / recent.length;
+        const ratio = currentRange / avgRange;
+        if (ratio < 0.45) return { tf: tfLabel, val: ((1 - ratio) * 100).toFixed(0) };
+        return null;
+    }
+
+    function detectPreBad(list, tfLabel) {
+        if (list.length < 3) return null;
+        const c1 = list[list.length-3], c2 = list[list.length-2], c3 = list[list.length-1];
+        const b1 = Math.abs(c1.c - c1.o), b2 = Math.abs(c2.c - c2.o);
+        if (c1.c > c1.o && c2.c < c2.o && b2 < b1) {
+            if (c3.c > c2.h && c3.c < c1.h) return { tf: tfLabel, side: 'LONG', msg: `PRE-BAD ${tfLabel} LONG IMMINENT` };
+        }
+        if (c1.c < c1.o && c2.c > c2.o && b2 < b1) {
+            if (c3.c < c2.l && c3.c > c1.l) return { tf: tfLabel, side: 'SHORT', msg: `PRE-BAD ${tfLabel} SHORT IMMINENT` };
+        }
+        return null;
+    }
+
+    async function runBullScan() {
+        if (!isBullScanning) return;
+        try {
+            const t = await apiBull('tickers', { category: 'linear' });
+            const symbols = t.result.list.filter(x => x.symbol.endsWith('USDT') && (parseFloat(x.volume24h)*parseFloat(x.lastPrice)) > 1000000);
+
+            const results = await Promise.all(symbols.map(async (item) => {
+                const s = item.symbol;
+                const curP = parseFloat(item.lastPrice);
+                const high24h = parseFloat(item.highPrice24h);
+                const low24h = parseFloat(item.lowPrice24h);
+                const posPerc = ((curP - low24h) / (high24h - low24h)) * 100;
+
+                const [k1, k5, k30] = await Promise.all([
+                    apiBull('kline', { category: 'linear', symbol: s, interval: '1', limit: 235 }),
+                    apiBull('kline', { category: 'linear', symbol: s, interval: '5', limit: 50 }),
+                    apiBull('kline', { category: 'linear', symbol: s, interval: '30', limit: 50 })
+                ]);
+
+                if (!k1.result.list.length) return null;
+                const list1 = k1.result.list.map(k=>({o:parseFloat(k[1]),h:parseFloat(k[2]),l:parseFloat(k[3]),c:parseFloat(k[4]),v:parseFloat(k[5])})).reverse();
+                const list5 = k5.result.list.map(k=>({o:parseFloat(k[1]),h:parseFloat(k[2]),l:parseFloat(k[3]),c:parseFloat(k[4])})).reverse();
+                const list30 = k30.result.list.map(k=>({o:parseFloat(k[1]),h:parseFloat(k[2]),l:parseFloat(k[3]),c:parseFloat(k[4])})).reverse();
+                
+                const p1 = list1.map(x=>x.c), p5 = list5.map(x=>x.c), p30 = list30.map(x=>x.c);
+                const maxR = Math.max(...list1.slice(-3).map(k=>((k.h-k.l)/k.l)*100));
+                if (maxR < 0.50) return null;
+
+                let highTouches = 0, lowTouches = 0, lastHIdx = -99, lastLIdx = -99;
+                for(let i = list1.length - 1; i >= 0; i--) {
+                    const c = list1[i];
+                    if(Math.abs(c.h - high24h) / high24h * 100 <= 0.35) {
+                        if(lastHIdx - i >= 15 || lastHIdx === -99) { highTouches++; lastHIdx = i; }
+                    }
+                    if(Math.abs(c.l - low24h) / low24h * 100 <= 0.35) {
+                        if(lastLIdx - i >= 15 || lastLIdx === -99) { lowTouches++; lastLIdx = i; }
+                    }
+                }
+                
+                const isPushingHigh = highTouches >= 3 && (Math.abs(curP - high24h) / high24h * 100) <= 0.5;
+                const isPushingLow = lowTouches >= 3 && (Math.abs(curP - low24h) / low24h * 100) <= 0.5;
+
+                const ema5 = getEMABull(p1, 5);
+                const avgC = list1.slice(-11, -1).reduce((acc, c) => acc + Math.abs(c.c - c.o), 0) / 10;
+                const isScollato = Math.abs(p1[p1.length-1] - ema5) > (avgC * 2.8);
+
+                let vCount = 0;
+                // Imposta il limite Viagra a 10 candele come richiesto nel prompt utente
+                for(let i=1; i<=viagraDominanceDetectionLimit; i++) {
+                    const subE = getEMABull(p1.slice(0, p1.length-i+1), 5);
+                    if ((p1[p1.length-1]>ema5 && p1[p1.length-i]>subE)||(p1[p1.length-1]<ema5 && p1[p1.length-i]<subE)) vCount++;
+                }
+
+                const s1 = checkEMA10Rec(p1), s5 = checkEMA10Rec(p5), s30 = checkEMA10Rec(p30);
+                
+                const sq1 = detectSqueeze(list1, "1M"), sq5 = detectSqueeze(list5, "5M"), sq30 = detectSqueeze(list30, "30M");
+                const pb1 = detectPreBad(list1, "1M"), pb5 = detectPreBad(list5, "5M"), pb30 = detectPreBad(list30, "30M");
+                const bad1 = detectBadPattern(list1, "1M"), bad5 = detectBadPattern(list5, "5M"), bad30 = detectBadPattern(list30, "30M");
+                const badAll1 = detectBadAllungato(list1, "1M"), badAll5 = detectBadAllungato(list5, "5M"), badAll30 = detectBadAllungato(list30, "30M");
+
+                const hasBadAllLong = (badAll1?.side === 'LONG' || badAll5?.side === 'LONG' || badAll30?.side === 'LONG');
+                const hasBadAllShort = (badAll1?.side === 'SHORT' || badAll5?.side === 'SHORT' || badAll30?.side === 'SHORT');
+
+                const flow = (list1.slice(-5).reduce((acc,c)=>acc+(c.v*c.c),0)/1000000);
+                const isUltimate = (s1.type === s5.type && s5.type === s30.type) && (bad1 || bad5 || bad30) && flow > 20 && !isScollato;
+                
+                let priority = maxR;
+                if (isUltimate) priority = 1000;
+                if (isPushingHigh || isPushingLow) priority = 10000;
+                if (badAll1 || badAll5 || badAll30) priority = 100000;
+                if (pb1 || pb5 || pb30) priority += 50000;
+                if (sq1 || sq5 || sq30) priority += 20000;
+
+                return { s, curP, high24h, low24h, posPerc, range: maxR, priority, isUltimate, isPushingHigh, isPushingLow, highTouches, lowTouches, isViagra: vCount>=viagraDominanceDetectionLimit, flow: flow.toFixed(1), s1, s5, s30, bad1, bad5, bad30, badAll1, badAll5, badAll30, hasBadAllLong, hasBadAllShort, isScollato, sq1, sq5, sq30, pb1, pb5, pb30 };
+            }));
+
+            const filtered = results.filter(r=>r).sort((a,b)=> b.priority - a.priority);
+            document.getElementById('results-bull').innerHTML = filtered.map(sig => {
+                let cardClass = '';
+                if (sig.hasBadAllLong) cardClass = 'bad-allungato-long';
+                else if (sig.hasBadAllShort) cardClass = 'bad-allungato-short';
+                else if (sig.isUltimate && !sig.isPushingHigh && !sig.isPushingLow) cardClass = 'ULTIMATE-COMBO';
+
+                const squeezeBadges = [sig.sq1, sig.sq5, sig.sq30].filter(x => x).map(x => `<span class="squeeze-badge">${x.tf} -${x.val}%</span>`).join('');
+                const preBadAlerts = [sig.pb1, sig.pb5, sig.pb30].filter(x => x).map(x => `<div class="pre-bad-alert">⚡ ${x.msg}</div>`).join('');
+                
+                // Generazione link per il MultiChart
+                const multiChartUrl = `${window.location.origin}${window.location.pathname}?symbol=${sig.s}`;
+
+                return `
+        <div class="card-bull ${cardClass} ${sig.sq1 || sig.sq5 || sig.sq30 ? 'is-squeeze' : ''}">
+            ${sig.isPushingHigh ? `<div class="touch-pressure-alert">🔥 ${sig.highTouches} TOUCHES AL MAX: BREAKOUT LONG IMMINENT</div>` : ''}
+            ${sig.isPushingLow ? `<div class="touch-support-alert">🧊 ${sig.lowTouches} TOUCHES AL MIN: BREAKDOWN SHORT IMMINENT</div>` : ''}
+            
+            <div class="symbol-header-bull">
+    <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; max-width: 75%;">
+        <a href="javascript:void(0)" onclick="openMultiChart('${sig.s}')" class="symbol-name-bull">${sig.s}</a>
+        
+        <a href="https://www.bybit.com/trade/usdt/${sig.s}?affiliate_id=6YD2ZO" 
+           target="_blank" 
+           style="text-decoration: none; font-size: 0.6em; background: #333; padding: 4px 6px; border-radius: 4px; border: 1px solid #555; line-height: 1;">
+           🔗
+        </a>
+        
+        ${squeezeBadges}
+    </div>
+    <span style="font-weight:900; color:#fff; font-size: 1.0em;">$${sig.curP}</span>
+</div>
+
+
+            ${preBadAlerts}
+
+            <div class="daily-info"><span>L: ${sig.low24h}</span><span>H: ${sig.high24h}</span></div>
+            <div class="price-bar-container"><div class="price-dot" style="left: ${sig.posPerc}%"></div></div>
+
+            <div class="main-stats">
+                <div class="stat-badge flow-badge"><span style="font-size:0.5em; display:block">FLOW 5M</span>$${sig.flow}M</div>
+                <div class="stat-badge range-badge"><span style="font-size:0.5em; display:block">RANGE 1M</span>${sig.range.toFixed(2)}%</div>
+            </div>
+
+            ${sig.isViagra ? `<div class="viagra-alert">⚡ DOMINANCE (${viagraDominanceDetectionLimit})</div>` : ''}
+            ${sig.isScollato ? `<div class="gap-alert">⚠️ EXPLODED</div>` : ''}
+
+            <table class="tf-table">
+                <tr class="tf-row">
+                    <td>1M</td>
+                    <td style="background: ${getBgBull(sig.s1)}"></td>
+                    <td>5M</td>
+                    <td style="background: ${getBgBull(sig.s5)}"></td>
+                    <td>30M</td>
+                    <td style="background: ${getBgBull(sig.s30)}"></td>
+                </tr>
+            </table>
+
+            ${sig.bad1 ? `<div class="bad-signal-box ${sig.bad1.side === 'LONG' ? 'bad-long' : 'bad-short'}">${sig.bad1.msg}</div>` : ''}
+            ${sig.bad5 ? `<div class="bad-signal-box ${sig.bad5.side === 'LONG' ? 'bad-long' : 'bad-short'}">${sig.bad5.msg}</div>` : ''}
+            ${sig.bad30 ? `<div class="bad-signal-box ${sig.bad30.side === 'LONG' ? 'bad-long' : 'bad-short'}" style="border-width:4px">${sig.bad30.msg} 🔥</div>` : ''}
+
+            ${sig.badAll1 ? `<div class="bad-signal-box ${sig.badAll1.side === 'LONG' ? 'bad-long' : 'bad-short'}" style="border-style: dashed;">⏳ ${sig.badAll1.msg}</div>` : ''}
+            ${sig.badAll5 ? `<div class="bad-signal-box ${sig.badAll5.side === 'LONG' ? 'bad-long' : 'bad-short'}" style="border-style: dashed;">⏳ ${sig.badAll5.msg}</div>` : ''}
+            ${sig.badAll30 ? `<div class="bad-signal-box ${sig.badAll30.side === 'LONG' ? 'bad-long' : 'bad-short'}" style="border-style: dashed; border-width:4px">⏳ ${sig.badAll30.msg} 🔥</div>` : ''}
+        </div>
+            `}).join('');
+        } catch (e) { console.error(e); }
+    }
+
+    function getBgBull(s) { return s.type === 'LONG' ? 'var(--bull-green)' : 'var(--bull-red)'; }
+    function toggleBullScan() { 
+    isBullScanning = !isBullScanning; 
+    const titleEl = document.getElementById('scanning-title');
+    
+    if (isBullScanning) {
+        titleEl.classList.add('blinking');
+        // Opzionale: puoi forzare un run immediato quando riprendi
+        runBullScan(); 
+    } else {
+        titleEl.classList.remove('blinking');
+    }
+}
+function openMultiChart(symbol) {
+    // Fermiamo lo scanner se attivo
+    isBullScanning = false;
+    if(bullScanInterval) {
+        clearInterval(bullScanInterval);
+        bullScanInterval = null;
+    }
+    document.getElementById('scanning-title').classList.remove('blinking');
+
+    // Cambiamo la visibilità dei contenitori
+    document.getElementById('app-container').style.display = 'none';
+    const multiContainer = document.getElementById('multi-container');
+    multiContainer.style.display = 'grid';
+
+    const defaults = { mc1: '1', mc2: '5', mc3: '30', mc4: 'D' };
+    
+    // Iteriamo sui 4 box del multichart
+    Object.keys(defaults).forEach(id => {
+        const container = document.getElementById(id);
+        const labelEl = document.getElementById(`label-${id}`);
+        
+        if (container) {
+            container.innerHTML = ""; // Svuota il grafico precedente
+            
+            // Crea il selettore del timeframe
+            let options = TF_LIST.map(t => `<option value="${t.v}" ${t.v === defaults[id] ? 'selected' : ''}>${t.n}</option>`).join('');
+            labelEl.innerHTML = `<select onchange="initChart('${symbol}', '${id}', this.value)">${options}</select>`;
+            
+            // Il timeout è cruciale per permettere al browser di calcolare le dimensioni della griglia
+            setTimeout(() => {
+                initChart(symbol, id, defaults[id]);
+            }, 300);
+        }
+    });
+}
+
+
+function closeMultiChart() {
+    document.getElementById('app-container').style.display = 'flex';
+    document.getElementById('multi-container').style.display = 'none';
+    
+    // Chiudiamo i socket del multichart
+    closeWS();
+    
+    // Se la vista attiva è quella dei grafici, ricaricali
+    if (document.getElementById('chartGrid').style.display !== 'none') {
+        render();
+    }
+}
+
+
+</script>
+</body>
+</html>
